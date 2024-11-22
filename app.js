@@ -2,9 +2,9 @@ import express from "express";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import connectDB from "./src/config/db.js";
-import productRoutes from "./src/routes/productRoutes.js";
+import productRoutes from "./src/routes/products.js";
 import cors from "cors";
-
+import categories from "./src/routes/categories.js";
 dotenv.config();
 
 const app = express();
@@ -18,6 +18,7 @@ app.use(morgan("tiny"));
 
 // Routes
 app.use(`${api}/products`, productRoutes);
+app.use(`${api}/categories`, categories);
 
 // Database connection
 connectDB();
