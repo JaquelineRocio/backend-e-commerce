@@ -2,101 +2,226 @@ import express from "express";
 import Product from "../models/product.js";
 import Category from "../models/category.js";
 import mongoose from "mongoose";
+
 const router = express.Router();
 
-router.post("/", async (req, res) => {
-  try {
-    const category = await Category.findById(req.body.category);
-    if (!category) {
-      return res.status(400).send("Invalid Category");
-    }
+// Helper function to validate ObjectId
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
-    const product = new Product({
-      name: req.body.name,
-      description: req.body.description,
-      richDescription: req.body.richDescription,
-      image: req.body.image,
-      images: req.body.images,
-      brand: req.body.brand,
-      price: req.body.price,
-      category: req.body.category,
-      countInStock: req.body.countInStock,
-      rating: req.body.rating,
-      numReviews: req.body.numReviews,
-      isFeatured: req.body.isFeatured,
-    });
-
-    await product.save();
-    res.status(201).send(product);
-  } catch (error) {
-    console.log(error);
-    return res.status(400).send(error.message);
-  }
-});
-
+// Helper function for consistent error responses
+const handleErrorResponse = (res, statusCode, message) => {
+  res.status(statusCode).json({ success: false, message });
+};
+// GET: Fetch all products with optional filtering
 router.get("/", async (req, res) => {
   try {
-    const productList = await Product.find().populate("category");
-    if (!productList) {
-      return res.status(500).json({ success: false });
+    let filter = {};
+
+    if (req.query.categories) {
+      const categoryIds = req.query.categories.split(",");
+
+      const areValidIds = categoryIds.every((id) =>
+        mongoose.Types.ObjectId.isValid(id)
+      );
+
+      if (!areValidIds) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid category IDs provided.",
+        });
+      }
+
+      filter = { category: { $in: categoryIds } };
     }
-    res.send(productList);
+
+    const productList = await Product.find(filter).populate("category");
+
+    if (!productList.length) {
+      return res.status(404).json({
+        success: false,
+        message: "No products found.",
+      });
+    }
+
+    res.status(200).json(productList);
   } catch (error) {
-    res.status(400).json({ success: false, error });
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch products.",
+      error: error.message,
+    });
   }
 });
 
+// GET: Fetch all products
+router.get("/", async (req, res) => {
+  try {
+    const products = await Product.find().populate("category");
+    res.json(products);
+  } catch (error) {
+    console.error(error);
+    handleErrorResponse(res, 500, "Failed to fetch products");
+  }
+});
+
+// GET: Fetch a product by ID
 router.get("/:id", async (req, res) => {
-  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-    return res.status(400).send("Invalid product ID");
+  const { id } = req.params;
+
+  if (!isValidObjectId(id)) {
+    return handleErrorResponse(res, 400, "Invalid Product ID");
   }
 
   try {
-    const product = await Product.findById(req.params.id).populate("category");
+    const product = await Product.findById(id).populate("category");
     if (!product) {
-      return res.status(404).send("Product not found");
+      return handleErrorResponse(res, 404, "Product not found");
     }
-    res.send(product);
+
+    res.json(product);
   } catch (error) {
-    res.status(400).json({ success: false, error });
+    console.error(error);
+    handleErrorResponse(res, 500, "Failed to fetch product");
   }
 });
+// POST: Create a new product
+router.post("/", async (req, res) => {
+  const { category, ...productData } = req.body;
 
-router.put("/:id", async (req, res) => {
-  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-    return res.status(400).send("Invalid product ID");
+  if (!isValidObjectId(category)) {
+    return handleErrorResponse(res, 400, "Invalid Category ID");
   }
 
   try {
-    const category = await Category.findById(req.body.category);
-    if (!category) {
-      return res.status(400).send("Invalid Category");
+    const categoryExists = await Category.findById(category);
+    if (!categoryExists) {
+      return handleErrorResponse(res, 400, "Invalid Category");
     }
 
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      {
-        name: req.body.name,
-        description: req.body.description,
-        richDescription: req.body.richDescription,
-        image: req.body.image,
-        images: req.body.images,
-        brand: req.body.brand,
-        price: req.body.price,
-        category: req.body.category,
-        countInStock: req.body.countInStock,
-        rating: req.body.rating,
-        numReviews: req.body.numReviews,
-        isFeatured: req.body.isFeatured,
-      },
+    const product = new Product({ category, ...productData });
+    const savedProduct = await product.save();
+
+    res.status(201).json(savedProduct);
+  } catch (error) {
+    console.error(error);
+    handleErrorResponse(res, 500, "Failed to create product");
+  }
+});
+// PUT: Update a product by ID
+router.put("/:id", async (req, res) => {
+  const { id } = req.params;
+  const { category, ...productData } = req.body;
+
+  if (!isValidObjectId(id)) {
+    return handleErrorResponse(res, 400, "Invalid Product ID");
+  }
+
+  if (category && !isValidObjectId(category)) {
+    return handleErrorResponse(res, 400, "Invalid Category ID");
+  }
+
+  try {
+    if (category) {
+      const categoryExists = await Category.findById(category);
+      if (!categoryExists) {
+        return handleErrorResponse(res, 400, "Invalid Category");
+      }
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      { category, ...productData },
       { new: true }
     ).populate("category");
 
-    if (!product) return res.status(404).send("The product cannot be updated!");
-    res.send(product);
+    if (!updatedProduct) {
+      return handleErrorResponse(res, 404, "Product not found");
+    }
+
+    res.json(updatedProduct);
   } catch (error) {
-    console.log(error);
-    return res.status(400).send(error.message);
+    console.error(error);
+    handleErrorResponse(res, 500, "Failed to update product");
+  }
+});
+
+// DELETE: Delete a product by ID
+router.delete("/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (!isValidObjectId(id)) {
+    return handleErrorResponse(res, 400, "Invalid Product ID");
+  }
+
+  try {
+    const deletedProduct = await Product.findByIdAndDelete(id);
+    if (!deletedProduct) {
+      return handleErrorResponse(res, 404, "Product not found");
+    }
+
+    res.json({ success: true, message: "Product deleted" });
+  } catch (error) {
+    console.error(error);
+    handleErrorResponse(res, 500, "Failed to delete product");
+  }
+});
+
+// GET: Count of products
+router.get("/get/count", async (req, res) => {
+  try {
+    const productCount = await Product.countDocuments();
+    res.json({ productCount });
+  } catch (error) {
+    console.error(error);
+    handleErrorResponse(res, 500, "Failed to fetch product count");
+  }
+});
+
+// GET: Featured products
+router.get("/get/featured", async (req, res) => {
+  try {
+    const featuredProducts = await Product.find({ isFeatured: true });
+    if (!featuredProducts.length) {
+      return handleErrorResponse(res, 404, "No featured products found");
+    }
+
+    res.json(featuredProducts);
+  } catch (error) {
+    console.error(error);
+    handleErrorResponse(res, 500, "Failed to fetch featured products");
+  }
+});
+
+router.get("/get/featured/:count", async (req, res) => {
+  const count = parseInt(req.params.count, 10);
+
+  if (isNaN(count) || count <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid count parameter. It must be a positive number.",
+    });
+  }
+
+  try {
+    const featuredProducts = await Product.find({ isFeatured: true }).limit(
+      count
+    );
+
+    if (!featuredProducts.length) {
+      return res.status(404).json({
+        success: false,
+        message: "No featured products found",
+      });
+    }
+
+    res.status(200).json(featuredProducts);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch featured products",
+    });
   }
 });
 
