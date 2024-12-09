@@ -8,6 +8,7 @@ import categories from "./src/routes/categories.js";
 import users from "./src/routes/users.js";
 import authJwt from "./src/helpers/jwt.js";
 import errorHandler from "./src/helpers/errorHandler.js";
+import orders from "./src/routes/orders.js";
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.use(errorHandler);
 app.use(`${api}/products`, productRoutes);
 app.use(`${api}/categories`, categories);
 app.use(`${api}/users`, users);
+app.use(`${api}/orders`, orders);
 
 // Database connection
 connectDB();

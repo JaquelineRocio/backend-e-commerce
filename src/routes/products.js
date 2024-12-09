@@ -5,14 +5,12 @@ import mongoose from "mongoose";
 
 const router = express.Router();
 
-// Helper function to validate ObjectId
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
-// Helper function for consistent error responses
 const handleErrorResponse = (res, statusCode, message) => {
   res.status(statusCode).json({ success: false, message });
 };
-// GET: Fetch all products with optional filtering
+
 router.get("/", async (req, res) => {
   try {
     let filter = {};
@@ -54,7 +52,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET: Fetch all products
 router.get("/", async (req, res) => {
   try {
     const products = await Product.find().populate("category");
@@ -65,7 +62,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET: Fetch a product by ID
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
 
@@ -85,7 +81,7 @@ router.get("/:id", async (req, res) => {
     handleErrorResponse(res, 500, "Failed to fetch product");
   }
 });
-// POST: Create a new product
+
 router.post("/", async (req, res) => {
   const { category, ...productData } = req.body;
 
@@ -108,7 +104,7 @@ router.post("/", async (req, res) => {
     handleErrorResponse(res, 500, "Failed to create product");
   }
 });
-// PUT: Update a product by ID
+
 router.put("/:id", async (req, res) => {
   const { id } = req.params;
   const { category, ...productData } = req.body;
@@ -146,7 +142,6 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE: Delete a product by ID
 router.delete("/:id", async (req, res) => {
   const { id } = req.params;
 
@@ -167,7 +162,6 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// GET: Count of products
 router.get("/get/count", async (req, res) => {
   try {
     const productCount = await Product.countDocuments();
@@ -178,7 +172,6 @@ router.get("/get/count", async (req, res) => {
   }
 });
 
-// GET: Featured products
 router.get("/get/featured", async (req, res) => {
   try {
     const featuredProducts = await Product.find({ isFeatured: true });
