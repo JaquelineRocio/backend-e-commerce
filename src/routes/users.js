@@ -112,6 +112,7 @@ router.post("/login", async (req, res) => {
         secret,
         { expiresIn: "1d" }
       );
+      console.log(user, token);
       return res.status(200).send({ user: user.email, token });
     } else {
       return res.status(400).send("Invalid password");
