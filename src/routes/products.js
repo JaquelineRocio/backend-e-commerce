@@ -49,22 +49,16 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.post("/", uploadOptions.single("image"), async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const category = await Category.findById(req.body.category);
     if (!category) return res.status(400).send("Invalid Category");
 
-    const file = req.file;
-    if (!file) return res.status(400).send("No image in the request");
-
-    const fileName = file.filename;
-    const basePath = `${req.protocol}://${req.get("host")}/public/uploads/`;
-
     const product = new Product({
       ...req.body,
-      image: `${basePath}${fileName}`,
     });
 
+    console.log(product);
     const savedProduct = await product.save();
     res.status(201).send(savedProduct);
   } catch (error) {
@@ -72,7 +66,7 @@ router.post("/", uploadOptions.single("image"), async (req, res) => {
   }
 });
 
-router.put("/:id", uploadOptions.single("image"), async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id))
       return res.status(400).send("Invalid Product Id");
@@ -83,13 +77,9 @@ router.put("/:id", uploadOptions.single("image"), async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).send("Product not found");
 
-    const file = req.file;
-    const basePath = `${req.protocol}://${req.get("host")}/public/uploads/`;
-    const imagePath = file ? `${basePath}${file.filename}` : product.image;
-
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
-      { ...req.body, image: imagePath },
+      { ...req.body },
       { new: true }
     );
 
